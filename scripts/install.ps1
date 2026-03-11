@@ -9,7 +9,7 @@ $RepoName = if ($env:REPO_NAME) { $env:REPO_NAME } else { "mdz-cli" }
 $RepoRef = if ($env:REPO_REF) { $env:REPO_REF } else { "main" }
 
 $InstallRoot = if ($env:INSTALL_ROOT) { $env:INSTALL_ROOT } else { Join-Path $env:LOCALAPPDATA "mdz-cli" }
-$BinDir = if ($env:BIN_DIR) { $env:BIN_DIR } else { Join-Path $env:USERPROFILE ".local\bin" }
+$BinDir = if ($env:BIN_DIR) { $env:BIN_DIR } else { Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps" }
 
 $TempRoot = Join-Path $env:TEMP ("mdz-install-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $TempRoot | Out-Null
