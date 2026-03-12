@@ -28,43 +28,43 @@ public static class CreateCommand
 
         var sourceOption = new Option<DirectoryInfo?>(
             aliases: ["--source", "-s"],
-            description: "Source directory containing the files to package.");
+            description: "Required source directory. Can be provided positionally as <source>.");
 
         var outputOption = new Option<FileInfo?>(
             aliases: ["--output", "-o"],
-            description: "Path to the output .mdz file to create.");
+            description: "Required output archive path. Can be provided positionally as <output>. If no extension is supplied, .mdz is added automatically.");
 
         var forceOption = new Option<bool>(
             aliases: ["--force", "-f"],
             description: "Overwrite the output archive if it already exists.");
 
         var createIndexOption = new Option<bool>(
-            aliases: ["--create-index"],
+            aliases: ["--create-index", "-ci"],
             description: "Automatically create index.md with links to Markdown files when entry-point resolution is ambiguous.");
 
         var titleOption = new Option<string?>(
             aliases: ["--title", "-t"],
-            description: "Document title to include in manifest.json.");
+            description: "* Document title to include in manifest.json.");
 
         var entryPointOption = new Option<string?>(
             aliases: ["--entry-point", "-e"],
-            description: "Relative path to the entry-point Markdown file within the archive.");
+            description: "* Relative path to the entry-point Markdown file within the archive.");
 
         var languageOption = new Option<string?>(
             aliases: ["--language", "-l"],
-            description: "BCP 47 language tag for the document (e.g. 'en', 'fr-CA'). Defaults to 'en'.");
+            description: "* BCP 47 language tag for the document (e.g. 'en', 'fr-CA'). Defaults to 'en'.");
 
         var authorOption = new Option<string?>(
             aliases: ["--author", "-a"],
-            description: "Author name (optional).");
+            description: "* Author name.");
 
         var descriptionOption = new Option<string?>(
             aliases: ["--description", "-d"],
-            description: "Short description of the document.");
+            description: "* Short description of the document.");
 
         var versionOption = new Option<string?>(
             aliases: ["--doc-version"],
-            description: "Version of the document itself (e.g. '1.0.0').");
+            description: "* Version of the document itself (e.g. '1.0.0').");
 
         var cmd = new Command("create", "Create a .mdz archive from a source directory.")
         {
@@ -135,14 +135,41 @@ public static class CreateCommand
         if (!Path.HasExtension(outputPath))
             outputPath += ".mdz";
 
-        // Build optional manifest
-        Manifest? manifest = null;
-        if (title is not null)
+        if (Directory.Exists(outputPath))
         {
+            Console.Error.WriteLine($"Error: Output path '{outputPath}' is an existing directory.");
+            return 1;
+        }
+
+        if (File.Exists(outputPath) && !force)
+        {
+            Console.Error.WriteLine($"Error: Output file '{outputPath}' already exists. Use --force to overwrite.");
+            return 1;
+        }
+
+        var hasManifestOption =
+            title is not null
+            || entryPoint is not null
+            || language is not null
+            || author is not null
+            || description is not null
+            || docVersion is not null;
+
+        // Build optional manifest. Any metadata option triggers manifest creation.
+        Manifest? manifest = null;
+        if (hasManifestOption)
+        {
+            var effectiveTitle = title;
+            if (string.IsNullOrWhiteSpace(effectiveTitle))
+            {
+                effectiveTitle = source.Name;
+                Console.WriteLine($"Info: --title was not provided. Using source folder name '{effectiveTitle}' for manifest title.");
+            }
+
             manifest = new Manifest
             {
                 Mdz = "1.0.0",
-                Title = title,
+                Title = effectiveTitle,
                 EntryPoint = entryPoint,
                 Language = language ?? "en",
                 Description = description,
@@ -150,45 +177,14 @@ public static class CreateCommand
                 Authors = author is not null ? [new Author { Name = author }] : null,
             };
         }
-        else if (entryPoint is not null || language is not null || description is not null || docVersion is not null || author is not null)
-        {
-            Console.Error.WriteLine("Warning: Manifest options provided but --title is required to write a manifest.json. A manifest will not be written.");
-        }
-
-        if (!createIndex && string.IsNullOrWhiteSpace(manifest?.EntryPoint))
-        {
-            var archivePaths = Directory.EnumerateFiles(source.FullName, "*", SearchOption.AllDirectories)
-                .Select(localPath => Path.GetRelativePath(source.FullName, localPath).Replace(Path.DirectorySeparatorChar, '/'))
-                .ToList();
-
-            if (ResolveEntryPoint(archivePaths, manifest) is null && IsInteractiveConsole())
-            {
-                createIndex = PromptCreateIndex();
-                if (createIndex)
-                    Console.WriteLine("Generating default index.md.");
-            }
-        }
 
         try
         {
-            if (File.Exists(outputPath))
-            {
-                if (!force)
-                {
-                    Console.Error.WriteLine($"Error: Output file '{outputPath}' already exists. Use --force to overwrite.");
-                    return 1;
-                }
-
-                File.Delete(outputPath);
-            }
+            var scan = ScanSourceFiles(source.FullName, manifest);
 
             if (createIndex)
             {
-                var files = Directory.EnumerateFiles(source.FullName, "*", SearchOption.AllDirectories)
-                    .Select(localPath => (
-                        ArchivePath: Path.GetRelativePath(source.FullName, localPath).Replace(Path.DirectorySeparatorChar, '/'),
-                        LocalPath: localPath))
-                    .ToList();
+                var files = scan.Files.ToList();
 
                 var entryPointResolved = ResolveEntryPoint(files.Select(f => f.ArchivePath).ToList(), manifest);
                 var tempIndexPath = string.Empty;
@@ -226,6 +222,7 @@ public static class CreateCommand
                         BuildGeneratedIndex(markdownPaths, createCommand, title),
                         Encoding.UTF8);
                     files.Add(("index.md", tempIndexPath));
+                    Console.WriteLine("Added generated archive entry 'index.md'.");
 
                     if (manifest is not null)
                         manifest.EntryPoint = "index.md";
@@ -234,6 +231,7 @@ public static class CreateCommand
                 try
                 {
                     MdzArchive.CreateFromFiles(outputPath, files, manifest);
+                    WriteCreateSummary(files.Count, scan);
                 }
                 finally
                 {
@@ -243,7 +241,63 @@ public static class CreateCommand
             }
             else
             {
-                MdzArchive.Create(outputPath, source.FullName, manifest);
+                var archivePaths = scan.Files.Select(file => file.ArchivePath).ToList();
+                if (string.IsNullOrWhiteSpace(manifest?.EntryPoint)
+                    && ResolveEntryPoint(archivePaths, manifest) is null
+                    && IsInteractiveConsole())
+                {
+                    createIndex = PromptCreateIndex();
+                    if (createIndex)
+                        Console.WriteLine("Generating default index.md.");
+                }
+
+                if (createIndex)
+                {
+                    var files = scan.Files.ToList();
+                    var markdownPaths = files
+                        .Select(f => f.ArchivePath)
+                        .Where(IsMarkdownFile)
+                        .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    var tempIndexPath = Path.Combine(Path.GetTempPath(), $"mdz-index-{Guid.NewGuid():N}.md");
+                    var createCommand = BuildCreateCommandForFooter(
+                        sourcePath: source.FullName,
+                        outputPath: outputPath,
+                        force: force,
+                        createIndex: createIndex,
+                        title: title,
+                        entryPoint: entryPoint,
+                        language: language,
+                        author: author,
+                        description: description,
+                        docVersion: docVersion);
+                    File.WriteAllText(
+                        tempIndexPath,
+                        BuildGeneratedIndex(markdownPaths, createCommand, title),
+                        Encoding.UTF8);
+                    files.Add(("index.md", tempIndexPath));
+                    Console.WriteLine("Added generated archive entry 'index.md'.");
+
+                    if (manifest is not null)
+                        manifest.EntryPoint = "index.md";
+
+                    try
+                    {
+                        MdzArchive.CreateFromFiles(outputPath, files, manifest);
+                        WriteCreateSummary(files.Count, scan);
+                    }
+                    finally
+                    {
+                        if (File.Exists(tempIndexPath))
+                            File.Delete(tempIndexPath);
+                    }
+                }
+                else
+                {
+                    MdzArchive.CreateFromFiles(outputPath, scan.Files, manifest);
+                    WriteCreateSummary(scan.Files.Count, scan);
+                }
             }
 
             Console.WriteLine($"Created '{outputPath}'");
@@ -252,6 +306,12 @@ public static class CreateCommand
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Error: {ex.Message}");
+            Console.Error.WriteLine("Archive was not created.");
+            if (File.Exists(outputPath))
+            {
+                Console.Error.WriteLine(
+                    $"Note: Existing file '{outputPath}' was left unchanged and may be from an earlier run.");
+            }
             return 1;
         }
     }
@@ -406,6 +466,75 @@ public static class CreateCommand
 
     private static bool IsInteractiveConsole() => !Console.IsInputRedirected;
 
+    private static SourceScanResult ScanSourceFiles(string sourceDirectory, Manifest? manifest)
+    {
+        var files = new List<(string ArchivePath, string LocalPath)>();
+        var skippedByReason = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var localPath in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+        {
+            var archivePath = Path.GetRelativePath(sourceDirectory, localPath)
+                .Replace(Path.DirectorySeparatorChar, '/');
+
+            if (manifest is not null && archivePath.Equals("manifest.json", StringComparison.OrdinalIgnoreCase))
+            {
+                AddSkip(skippedByReason, "manifest.json replaced by generated manifest");
+                continue;
+            }
+
+            var pathError = PathValidator.Validate(archivePath);
+            if (pathError is not null)
+            {
+                AddSkip(skippedByReason, "invalid path for MDZ rules");
+                continue;
+            }
+
+            if (!CanRead(localPath))
+            {
+                AddSkip(skippedByReason, "unreadable/locked file");
+                continue;
+            }
+
+            files.Add((archivePath, localPath));
+        }
+
+        return new SourceScanResult(files, skippedByReason);
+    }
+
+    private static bool CanRead(string path)
+    {
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static void AddSkip(Dictionary<string, int> skippedByReason, string reason)
+    {
+        skippedByReason.TryGetValue(reason, out var existing);
+        skippedByReason[reason] = existing + 1;
+    }
+
+    private static void WriteCreateSummary(int addedFiles, SourceScanResult scan)
+    {
+        Console.WriteLine($"{addedFiles} file(s) added to archive.");
+        if (scan.SkippedCount == 0)
+            return;
+
+        var reasonSummary = string.Join(
+            "; ",
+            scan.SkippedByReason
+                .OrderByDescending(kvp => kvp.Value)
+                .ThenBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(kvp => $"{kvp.Value} {kvp.Key}"));
+        Console.WriteLine($"{scan.SkippedCount} file(s) skipped: {reasonSummary}.");
+    }
+
     private static bool PromptCreateIndex()
     {
         Console.Write("No unambiguous entry point found. Create a default index.md now? [y/N]: ");
@@ -434,5 +563,12 @@ public static class CreateCommand
             Children.Add(created);
             return created;
         }
+    }
+
+    private sealed record SourceScanResult(
+        List<(string ArchivePath, string LocalPath)> Files,
+        Dictionary<string, int> SkippedByReason)
+    {
+        public int SkippedCount => SkippedByReason.Values.Sum();
     }
 }

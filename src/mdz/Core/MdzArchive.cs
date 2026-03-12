@@ -65,56 +65,57 @@ public static class MdzArchive
 
         EnsureCreatableEntryPoint(archivePaths, manifest);
 
-        using var archive = ZipFile.Open(outputPath, ZipArchiveMode.Create);
-
-        foreach (var filePath in allFiles)
+        CreateAtomic(outputPath, archive =>
         {
-            var relativePath = Path.GetRelativePath(sourceDirectory, filePath)
-                .Replace(Path.DirectorySeparatorChar, '/');
-
-            // Skip existing manifest.json if we are writing our own
-            if (manifest is not null && relativePath.Equals(ManifestFileName, StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var error = PathValidator.Validate(relativePath);
-            if (error is not null)
-                throw new InvalidOperationException($"Invalid path in source: {error}");
-
-            var entry = archive.CreateEntry(relativePath, CompressionLevel.Optimal);
-            using var entryStream = entry.Open();
-
-            // Normalise text file line endings to LF
-            if (IsTextFile(relativePath))
+            foreach (var filePath in allFiles)
             {
-                var content = File.ReadAllText(filePath, Encoding.UTF8);
-                content = NormaliseLf(content);
-                var bytes = Encoding.UTF8.GetBytes(content);
-                entryStream.Write(bytes, 0, bytes.Length);
+                var relativePath = Path.GetRelativePath(sourceDirectory, filePath)
+                    .Replace(Path.DirectorySeparatorChar, '/');
+
+                // Skip existing manifest.json if we are writing our own
+                if (manifest is not null && relativePath.Equals(ManifestFileName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var error = PathValidator.Validate(relativePath);
+                if (error is not null)
+                    throw new InvalidOperationException($"Invalid path in source: {error}");
+
+                var entry = archive.CreateEntry(relativePath, CompressionLevel.Optimal);
+                using var entryStream = entry.Open();
+
+                // Normalise text file line endings to LF
+                if (IsTextFile(relativePath))
+                {
+                    var content = File.ReadAllText(filePath, Encoding.UTF8);
+                    content = NormaliseLf(content);
+                    var bytes = Encoding.UTF8.GetBytes(content);
+                    entryStream.Write(bytes, 0, bytes.Length);
+                }
+                else
+                {
+                    using var fileStream = File.OpenRead(filePath);
+                    fileStream.CopyTo(entryStream);
+                }
             }
-            else
+
+            // Write manifest last (if provided)
+            if (manifest is not null)
             {
-                using var fileStream = File.OpenRead(filePath);
-                fileStream.CopyTo(entryStream);
+                manifest.Created ??= DateTime.UtcNow.ToString("o");
+                manifest.Modified = DateTime.UtcNow.ToString("o");
+
+                var manifestEntry = archive.CreateEntry(ManifestFileName, CompressionLevel.Optimal);
+                using var ms = manifestEntry.Open();
+                var json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                });
+                json = NormaliseLf(json);
+                var bytes = Encoding.UTF8.GetBytes(json);
+                ms.Write(bytes, 0, bytes.Length);
             }
-        }
-
-        // Write manifest last (if provided)
-        if (manifest is not null)
-        {
-            manifest.Created ??= DateTime.UtcNow.ToString("o");
-            manifest.Modified = DateTime.UtcNow.ToString("o");
-
-            var manifestEntry = archive.CreateEntry(ManifestFileName, CompressionLevel.Optimal);
-            using var ms = manifestEntry.Open();
-            var json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-            });
-            json = NormaliseLf(json);
-            var bytes = Encoding.UTF8.GetBytes(json);
-            ms.Write(bytes, 0, bytes.Length);
-        }
+        });
     }
 
     /// <summary>
@@ -133,52 +134,53 @@ public static class MdzArchive
 
         EnsureCreatableEntryPoint(archivePaths, manifest);
 
-        using var archive = ZipFile.Open(outputPath, ZipArchiveMode.Create);
-
-        foreach (var (archivePath, localPath) in fileList)
+        CreateAtomic(outputPath, archive =>
         {
-            var normalised = archivePath.Replace(Path.DirectorySeparatorChar, '/');
-
-            if (manifest is not null && normalised.Equals(ManifestFileName, StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var error = PathValidator.Validate(normalised);
-            if (error is not null)
-                throw new InvalidOperationException($"Invalid path '{normalised}': {error}");
-
-            var entry = archive.CreateEntry(normalised, CompressionLevel.Optimal);
-            using var entryStream = entry.Open();
-
-            if (IsTextFile(normalised))
+            foreach (var (archivePath, localPath) in fileList)
             {
-                var content = File.ReadAllText(localPath, Encoding.UTF8);
-                content = NormaliseLf(content);
-                var bytes = Encoding.UTF8.GetBytes(content);
-                entryStream.Write(bytes, 0, bytes.Length);
+                var normalised = archivePath.Replace(Path.DirectorySeparatorChar, '/');
+
+                if (manifest is not null && normalised.Equals(ManifestFileName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var error = PathValidator.Validate(normalised);
+                if (error is not null)
+                    throw new InvalidOperationException($"Invalid path '{normalised}': {error}");
+
+                var entry = archive.CreateEntry(normalised, CompressionLevel.Optimal);
+                using var entryStream = entry.Open();
+
+                if (IsTextFile(normalised))
+                {
+                    var content = File.ReadAllText(localPath, Encoding.UTF8);
+                    content = NormaliseLf(content);
+                    var bytes = Encoding.UTF8.GetBytes(content);
+                    entryStream.Write(bytes, 0, bytes.Length);
+                }
+                else
+                {
+                    using var fileStream = File.OpenRead(localPath);
+                    fileStream.CopyTo(entryStream);
+                }
             }
-            else
+
+            if (manifest is not null)
             {
-                using var fileStream = File.OpenRead(localPath);
-                fileStream.CopyTo(entryStream);
+                manifest.Created ??= DateTime.UtcNow.ToString("o");
+                manifest.Modified = DateTime.UtcNow.ToString("o");
+
+                var manifestEntry = archive.CreateEntry(ManifestFileName, CompressionLevel.Optimal);
+                using var ms = manifestEntry.Open();
+                var json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                });
+                json = NormaliseLf(json);
+                var bytes = Encoding.UTF8.GetBytes(json);
+                ms.Write(bytes, 0, bytes.Length);
             }
-        }
-
-        if (manifest is not null)
-        {
-            manifest.Created ??= DateTime.UtcNow.ToString("o");
-            manifest.Modified = DateTime.UtcNow.ToString("o");
-
-            var manifestEntry = archive.CreateEntry(ManifestFileName, CompressionLevel.Optimal);
-            using var ms = manifestEntry.Open();
-            var json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-            });
-            json = NormaliseLf(json);
-            var bytes = Encoding.UTF8.GetBytes(json);
-            ms.Write(bytes, 0, bytes.Length);
-        }
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -516,6 +518,36 @@ public static class MdzArchive
 
     private static string NormaliseLf(string content) =>
         content.Replace("\r\n", "\n").Replace("\r", "\n");
+
+    private static void CreateAtomic(string outputPath, Action<ZipArchive> writeArchive)
+    {
+        var outputDir = Path.GetDirectoryName(Path.GetFullPath(outputPath));
+        if (!string.IsNullOrEmpty(outputDir))
+            Directory.CreateDirectory(outputDir);
+
+        var tempPath = Path.Combine(
+            outputDir ?? Directory.GetCurrentDirectory(),
+            $".{Path.GetFileName(outputPath)}.{Guid.NewGuid():N}.tmp");
+
+        try
+        {
+            using (var archive = ZipFile.Open(tempPath, ZipArchiveMode.Create))
+            {
+                writeArchive(archive);
+            }
+
+            if (File.Exists(outputPath))
+                File.Delete(outputPath);
+
+            File.Move(tempPath, outputPath);
+        }
+        catch
+        {
+            if (File.Exists(tempPath))
+                File.Delete(tempPath);
+            throw;
+        }
+    }
 }
 
 /// <summary>

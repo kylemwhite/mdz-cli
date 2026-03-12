@@ -1,6 +1,6 @@
 # mdz command-line interface (CLI)
 
-A .NET command-line interface written in C# for creating, extracting, validating, and inspecting `.mdz` files.
+A cross-platform command-line interface for creating, extracting, validating, and inspecting `.mdz` files.
 
 The `.mdz` format is a portable, self-contained document format that packages one or more Markdown content files together with their associated assets into a single ZIP archive. See the [MDZ specification](https://github.com/kylemwhite/markdownzip-spec/blob/main/SPEC.md) for full details.
 
@@ -8,23 +8,23 @@ The `.mdz` format is a portable, self-contained document format that packages on
 
 ## Installation
 
-Binaries are distributed as prebuilt release assets. `.NET` is not required for normal CLI use.
+Although the CLI is built with C#, binaries are distributed as prebuilt release assets. `.NET` is not required for normal CLI use.
 
 ### One-line install
 
-Windows (PowerShell, will put `mdz.cmd` in `%LOCALAPPDATA%\Microsoft\WindowsApps` ):
+**Windows** (PowerShell, will put `mdz.cmd` in `%LOCALAPPDATA%\Microsoft\WindowsApps` ):
 
 ```powershell
 irm https://raw.githubusercontent.com/kylemwhite/mdz-cli/main/scripts/install.ps1 | iex
 ```
 
-Linux/macOS system-wide install (recommended if you can use sudo):
+**Linux/macOS system-wide install** (recommended if you can use sudo):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kylemwhite/mdz-cli/main/scripts/install.sh | sudo sh
 ```
 
-Linux/macOS:
+**Linux/macOS** (no sudo required but you might need to fix PATH):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kylemwhite/mdz-cli/main/scripts/install.sh | sh
@@ -84,16 +84,20 @@ mdz create ./my-doc-folder my-doc.mdz --create-index
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--source` | `-s` | Source directory (alternative to positional `<source>`) |
-| `--output` | `-o` | Output archive path (alternative to positional `<output>`) |
+| `--source` | `-s` | Required source directory (can also be provided positionally as `<source>`) |
+| `--output` | `-o` | Required output archive path (can also be provided positionally as `<output>`). If no extension is supplied, `.mdz` is added automatically |
 | `--force` | `-f` | Overwrite output file if it already exists |
-| `--create-index` | | Auto-generate `index.md` when no unambiguous entry point can be resolved |
-| `--title` | `-t` | Document title (writes `manifest.json`) |
-| `--entry-point` | `-e` | Relative path to the primary Markdown file |
-| `--language` | `-l` | BCP 47 language tag (e.g. `en`, `fr-CA`) |
-| `--author` | `-a` | Author name |
-| `--description` | `-d` | Short description of the document |
-| `--doc-version` | | Document version (e.g. `1.0.0`) |
+| `--create-index` | `-ci` | Auto-generate `index.md` when no unambiguous entry point can be resolved |
+| `--title` | `-t` | Metadata: document title (writes `manifest.json`) |
+| `--entry-point` | `-e` | Metadata: relative path to the primary Markdown file |
+| `--language` | `-l` | Metadata: BCP 47 language tag (e.g. `en`, `fr-CA`) |
+| `--author` | `-a` | Metadata: author name |
+| `--description` | `-d` | Metadata: short description of the document |
+| `--doc-version` | | Metadata: document version (e.g. `1.0.0`) |
+
+Notes:
+- Any metadata option (`--title`, `--entry-point`, `--language`, `--author`, `--description`, `--doc-version`) writes `manifest.json`.
+- If metadata options are used without `--title`, title defaults to the source folder name.
 
 ---
 
@@ -163,6 +167,8 @@ document.mdz
 
 ## Development
 
+Implementation note: this project is written in C# and targets .NET 10.
+
 Building from source requires [.NET 10 SDK](https://dotnet.microsoft.com/download).
 For Linux/macOS setup help, see [Install .NET on Linux/macOS](./INSTALL_DOTNET_LINUX_MACOS.md).
 
@@ -174,6 +180,6 @@ dotnet build
 dotnet test
 
 # Run directly
-dotnet run --project src/mdz/mdz.csproj -- --help
+dotnet run --project src/mdz.Cli/mdz.Cli.csproj -- --help
 ```
 

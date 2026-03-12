@@ -57,11 +57,10 @@ jobs:
 
       - name: Publish self-contained binary
         run: >
-          dotnet publish src/mdz/mdz.csproj
+          dotnet publish src/mdz.Cli/mdz.Cli.csproj
           --configuration Release
           --runtime ${{ matrix.rid }}
           --self-contained true
-          -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
           -o out/${{ matrix.rid }}
 
@@ -69,6 +68,9 @@ jobs:
         if: matrix.ext == 'tar.gz'
         shell: bash
         run: |
+          if [ -f "out/${{ matrix.rid }}/mdz.Cli" ]; then
+            mv "out/${{ matrix.rid }}/mdz.Cli" "out/${{ matrix.rid }}/mdz"
+          fi
           mkdir -p dist
           tar -czf "dist/mdz-${{ steps.tag.outputs.tag }}-${{ matrix.rid }}.tar.gz" -C "out/${{ matrix.rid }}" .
 
@@ -76,6 +78,9 @@ jobs:
         if: matrix.ext == 'zip'
         shell: pwsh
         run: |
+          if (Test-Path "out/${{ matrix.rid }}/mdz.Cli.exe") {
+            Rename-Item -Path "out/${{ matrix.rid }}/mdz.Cli.exe" -NewName "mdz.exe"
+          }
           New-Item -ItemType Directory -Path dist -Force | Out-Null
           Compress-Archive -Path "out/${{ matrix.rid }}/*" -DestinationPath "dist/mdz-${{ steps.tag.outputs.tag }}-${{ matrix.rid }}.zip" -Force
 
