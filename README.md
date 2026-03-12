@@ -8,7 +8,7 @@ The `.mdz` format is a portable, self-contained document format that packages on
 
 ## Installation
 
-Requires [.NET 10 SDK](https://dotnet.microsoft.com/download) or later.
+Binaries are distributed as prebuilt release assets. `.NET` is not required for normal CLI use.
 
 ### One-line install
 
@@ -22,6 +22,12 @@ Windows (PowerShell):
 
 ```powershell
 irm https://raw.githubusercontent.com/kylemwhite/mdz-cli/main/scripts/install.ps1 | iex
+```
+
+Windows executable location:
+
+```text
+%LOCALAPPDATA%\mdz-cli\mdz.exe
 ```
 
 Windows launcher location:
@@ -144,6 +150,9 @@ document.mdz
 ```
 
 ## Development
+
+Building from source requires [.NET 10 SDK](https://dotnet.microsoft.com/download).
+For Linux/macOS setup help, see [Install .NET on Linux/macOS](./INSTALL_DOTNET_LINUX_MACOS.md).
 
 ```bash
 # Build

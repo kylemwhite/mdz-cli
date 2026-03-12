@@ -1,46 +1,59 @@
 $ErrorActionPreference = "Stop"
 
-if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-    throw "dotnet SDK is required. Install .NET 10 SDK first."
-}
-
 $RepoOwner = if ($env:REPO_OWNER) { $env:REPO_OWNER } else { "kylemwhite" }
 $RepoName = if ($env:REPO_NAME) { $env:REPO_NAME } else { "mdz-cli" }
-$RepoRef = if ($env:REPO_REF) { $env:REPO_REF } else { "main" }
+$Version = if ($env:MDZ_VERSION) { $env:MDZ_VERSION } else { $null }
+$GitHubToken = if ($env:GITHUB_TOKEN) { $env:GITHUB_TOKEN } else { $null }
 
 $InstallRoot = if ($env:INSTALL_ROOT) { $env:INSTALL_ROOT } else { Join-Path $env:LOCALAPPDATA "mdz-cli" }
 $BinDir = if ($env:BIN_DIR) { $env:BIN_DIR } else { Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps" }
+
+$arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+$rid = switch ($arch) {
+    "x64" { "win-x64" }
+    "arm64" { "win-arm64" }
+    default { throw "Unsupported architecture '$arch'. Supported: x64, arm64." }
+}
+
+$headers = @{}
+if ($GitHubToken) {
+    $headers["Authorization"] = "Bearer $GitHubToken"
+}
+
+if (-not $Version) {
+    $latestUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
+    $latest = Invoke-RestMethod -Uri $latestUrl -Headers $headers
+    $Version = $latest.tag_name
+}
+
+if (-not $Version) {
+    throw "Could not determine release version. Set MDZ_VERSION (for example: v1.0.0)."
+}
+
+$assetName = "mdz-$Version-$rid.zip"
+$downloadUrl = "https://github.com/$RepoOwner/$RepoName/releases/download/$Version/$assetName"
 
 $TempRoot = Join-Path $env:TEMP ("mdz-install-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $TempRoot | Out-Null
 
 try {
-    $zipUrl = "https://github.com/$RepoOwner/$RepoName/archive/refs/heads/$RepoRef.zip"
-    $zipPath = Join-Path $TempRoot "src.zip"
-    $extractPath = Join-Path $TempRoot "src"
+    $zipPath = Join-Path $TempRoot "mdz.zip"
 
-    Write-Host "Downloading $RepoOwner/$RepoName ($RepoRef)..."
-    Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath
+    Write-Host "Installing $RepoOwner/$RepoName $Version ($rid)..."
+    Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -Headers $headers
 
-    Write-Host "Extracting sources..."
-    Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
-    $srcDir = Join-Path $extractPath "$RepoName-$RepoRef"
-
-    Write-Host "Publishing CLI..."
     if (Test-Path $InstallRoot) {
         Remove-Item -Recurse -Force $InstallRoot
     }
-    New-Item -ItemType Directory -Path $InstallRoot | Out-Null
-    dotnet publish (Join-Path $srcDir "src\mdz\mdz.csproj") -c Release -o $InstallRoot | Out-Null
+    New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
+    Expand-Archive -Path $zipPath -DestinationPath $InstallRoot -Force
 
-    Write-Host "Installing launcher..."
     New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
     $cmdPath = Join-Path $BinDir "mdz.cmd"
-    Set-Content -Path $cmdPath -NoNewline -Value "@echo off`r`ndotnet ""$InstallRoot\mdz.dll"" %*`r`n"
+    Set-Content -Path $cmdPath -NoNewline -Value "@echo off`r`n""$InstallRoot\mdz.exe"" %*`r`n"
 
-    Write-Host "Installed mdz to: $InstallRoot"
+    Write-Host "Installed files: $InstallRoot"
     Write-Host "Launcher: $cmdPath"
-    Write-Host "If needed, add this folder to PATH: $BinDir"
 }
 finally {
     if (Test-Path $TempRoot) {
