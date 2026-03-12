@@ -13,13 +13,29 @@ public static class CreateCommand
 {
     public static Command Build()
     {
-        var outputArg = new Argument<FileInfo>(
+        var sourceArg = new Argument<DirectoryInfo?>(
+            name: "source",
+            description: "Source directory containing the files to package.")
+        {
+            Arity = ArgumentArity.ZeroOrOne,
+        };
+
+        var outputArg = new Argument<FileInfo?>(
             name: "output",
             description: "Path to the output .mdz file to create.");
+        outputArg.Arity = ArgumentArity.ZeroOrOne;
 
-        var sourceArg = new Argument<DirectoryInfo>(
-            name: "source",
+        var sourceOption = new Option<DirectoryInfo?>(
+            aliases: ["--source", "-s"],
             description: "Source directory containing the files to package.");
+
+        var outputOption = new Option<FileInfo?>(
+            aliases: ["--output", "-o"],
+            description: "Path to the output .mdz file to create.");
+
+        var forceOption = new Option<bool>(
+            aliases: ["--force", "-f"],
+            description: "Overwrite the output archive if it already exists.");
 
         var titleOption = new Option<string?>(
             aliases: ["--title", "-t"],
@@ -47,8 +63,11 @@ public static class CreateCommand
 
         var cmd = new Command("create", "Create a .mdz archive from a source directory.")
         {
-            outputArg,
             sourceArg,
+            outputArg,
+            sourceOption,
+            outputOption,
+            forceOption,
             titleOption,
             entryPointOption,
             languageOption,
@@ -59,8 +78,9 @@ public static class CreateCommand
 
         cmd.SetHandler((InvocationContext ctx) =>
         {
-            var output = ctx.ParseResult.GetValueForArgument(outputArg);
-            var source = ctx.ParseResult.GetValueForArgument(sourceArg);
+            var source = ctx.ParseResult.GetValueForOption(sourceOption) ?? ctx.ParseResult.GetValueForArgument(sourceArg);
+            var output = ctx.ParseResult.GetValueForOption(outputOption) ?? ctx.ParseResult.GetValueForArgument(outputArg);
+            var force = ctx.ParseResult.GetValueForOption(forceOption);
             var title = ctx.ParseResult.GetValueForOption(titleOption);
             var entryPoint = ctx.ParseResult.GetValueForOption(entryPointOption);
             var language = ctx.ParseResult.GetValueForOption(languageOption);
@@ -68,16 +88,16 @@ public static class CreateCommand
             var description = ctx.ParseResult.GetValueForOption(descriptionOption);
             var docVersion = ctx.ParseResult.GetValueForOption(versionOption);
 
-            ctx.ExitCode = Handle(ctx, output!, source!, title, entryPoint, language, author, description, docVersion);
+            ctx.ExitCode = Handle(output, source, force, title, entryPoint, language, author, description, docVersion);
         });
 
         return cmd;
     }
 
     private static int Handle(
-        InvocationContext ctx,
-        FileInfo output,
-        DirectoryInfo source,
+        FileInfo? output,
+        DirectoryInfo? source,
+        bool force,
         string? title,
         string? entryPoint,
         string? language,
@@ -85,6 +105,18 @@ public static class CreateCommand
         string? description,
         string? docVersion)
     {
+        if (source is null)
+        {
+            Console.Error.WriteLine("Error: Source directory is required. Provide <source> or --source.");
+            return 1;
+        }
+
+        if (output is null)
+        {
+            Console.Error.WriteLine("Error: Output file is required. Provide <output> or --output.");
+            return 1;
+        }
+
         if (!source.Exists)
         {
             Console.Error.WriteLine($"Error: Source directory '{source.FullName}' does not exist.");
@@ -120,6 +152,17 @@ public static class CreateCommand
 
         try
         {
+            if (File.Exists(outputPath))
+            {
+                if (!force)
+                {
+                    Console.Error.WriteLine($"Error: Output file '{outputPath}' already exists. Use --force to overwrite.");
+                    return 1;
+                }
+
+                File.Delete(outputPath);
+            }
+
             MdzArchive.Create(outputPath, source.FullName, manifest);
             Console.WriteLine($"Created '{outputPath}'");
             return 0;

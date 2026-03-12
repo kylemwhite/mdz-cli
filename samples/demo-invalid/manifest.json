@@ -1,0 +1,12 @@
+{
+  "mdz": "1.0.0-draft",
+  "title": "Getting Started with .mdz",
+  "description": "A demo archive showing what .mdz can do — multiple pages, images, tables, and diagrams.",
+  "authors": [
+    {
+      "name": "markdownzip.org"
+    }
+  ],
+  "keywords": ["demo", "mdz", "markdown"],
+  "entryPoint": "index.md"
+}

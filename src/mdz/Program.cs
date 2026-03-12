@@ -9,5 +9,7 @@ var rootCommand = new RootCommand("mdz — command-line tool for creating, extra
     LsCommand.Build(),
     InspectCommand.Build(),
 };
+if (args.Length == 0)
+    args = ["--help"];
 
 return await rootCommand.InvokeAsync(args);

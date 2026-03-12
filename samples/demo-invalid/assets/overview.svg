@@ -1,0 +1,51 @@
+<svg width="800" height="175" viewBox="0 0 800 175" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+  <rect x="1" y="1" width="798" height="173" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.5"/>
+  <rect x="16" y="0" width="105" height="26" rx="5" fill="#0969da"/>
+  <text x="68" y="17" text-anchor="middle" fill="white" font-size="12" font-weight="600">demo.mdz</text>
+
+  <!-- manifest.json -->
+  <rect x="27" y="38" width="116" height="118" rx="6" fill="white" stroke="#d0d7de" stroke-width="1.5"/>
+  <rect x="39" y="55" width="92" height="44" rx="3" fill="#f0fff4" stroke="#aef0be" stroke-width="1"/>
+  <text x="85" y="81" text-anchor="middle" fill="#1a7f37" font-size="15" font-weight="600">{ }</text>
+  <text x="85" y="118" text-anchor="middle" fill="#1f2328" font-size="10" font-weight="600">manifest.json</text>
+  <text x="85" y="133" text-anchor="middle" fill="#8c959f" font-size="9">metadata</text>
+
+  <!-- index.md (entry point) -->
+  <rect x="153" y="38" width="116" height="118" rx="6" fill="white" stroke="#0969da" stroke-width="2"/>
+  <rect x="165" y="55" width="92" height="44" rx="3" fill="#ddf4ff" stroke="#80ccff" stroke-width="1"/>
+  <text x="211" y="74" text-anchor="middle" fill="#0969da" font-size="9"># Getting Started</text>
+  <text x="211" y="87" text-anchor="middle" fill="#0969da" font-size="8">with .mdz...</text>
+  <text x="211" y="118" text-anchor="middle" fill="#0969da" font-size="10" font-weight="600">index.md</text>
+  <text x="211" y="133" text-anchor="middle" fill="#8c959f" font-size="9">entry point</text>
+
+  <!-- faq.md -->
+  <rect x="279" y="38" width="116" height="118" rx="6" fill="white" stroke="#d0d7de" stroke-width="1.5"/>
+  <rect x="291" y="55" width="92" height="44" rx="3" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="337" y="74" text-anchor="middle" fill="#656d76" font-size="9"># FAQ</text>
+  <text x="337" y="87" text-anchor="middle" fill="#656d76" font-size="8">Q &amp; A...</text>
+  <text x="337" y="118" text-anchor="middle" fill="#1f2328" font-size="10" font-weight="600">faq.md</text>
+  <text x="337" y="133" text-anchor="middle" fill="#8c959f" font-size="9">linked page</text>
+
+  <!-- format.md -->
+  <rect x="405" y="38" width="116" height="118" rx="6" fill="white" stroke="#d0d7de" stroke-width="1.5"/>
+  <rect x="417" y="55" width="92" height="44" rx="3" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="463" y="74" text-anchor="middle" fill="#656d76" font-size="9"># Format</text>
+  <text x="463" y="87" text-anchor="middle" fill="#656d76" font-size="8">tables, rules...</text>
+  <text x="463" y="118" text-anchor="middle" fill="#1f2328" font-size="10" font-weight="600">format.md</text>
+  <text x="463" y="133" text-anchor="middle" fill="#8c959f" font-size="9">linked page</text>
+
+  <!-- tools.md -->
+  <rect x="531" y="38" width="116" height="118" rx="6" fill="white" stroke="#d0d7de" stroke-width="1.5"/>
+  <rect x="543" y="55" width="92" height="44" rx="3" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <text x="589" y="74" text-anchor="middle" fill="#656d76" font-size="9"># Tools</text>
+  <text x="589" y="87" text-anchor="middle" fill="#656d76" font-size="8">diagrams...</text>
+  <text x="589" y="118" text-anchor="middle" fill="#1f2328" font-size="10" font-weight="600">tools.md</text>
+  <text x="589" y="133" text-anchor="middle" fill="#8c959f" font-size="9">linked page</text>
+
+  <!-- assets/ -->
+  <rect x="657" y="38" width="116" height="118" rx="6" fill="white" stroke="#d0d7de" stroke-width="1.5"/>
+  <rect x="669" y="57" width="42" height="32" rx="3" fill="#fff8dc" stroke="#e6c44a" stroke-width="1"/>
+  <rect x="718" y="65" width="42" height="28" rx="3" fill="#fff8dc" stroke="#e6c44a" stroke-width="1"/>
+  <text x="715" y="118" text-anchor="middle" fill="#1f2328" font-size="10" font-weight="600">assets/</text>
+  <text x="715" y="133" text-anchor="middle" fill="#8c959f" font-size="9">overview.svg</text>
+</svg>

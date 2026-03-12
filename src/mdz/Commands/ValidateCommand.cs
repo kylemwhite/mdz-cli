@@ -32,27 +32,29 @@ public static class ValidateCommand
 
     private static int Handle(FileInfo archive)
     {
-        if (!archive.Exists)
+        var archivePath = ArchivePathResolver.ResolveInputArchivePath(archive.FullName);
+        if (!File.Exists(archivePath))
         {
-            Console.Error.WriteLine($"Error: Archive '{archive.FullName}' does not exist.");
+            Console.Error.WriteLine($"Error: Archive '{archivePath}' does not exist.");
             return 1;
         }
 
-        var result = MdzArchive.Validate(archive.FullName);
+        var result = MdzArchive.Validate(archivePath);
+        var archiveName = Path.GetFileName(archivePath);
 
         foreach (var warning in result.Warnings)
             Console.WriteLine($"  Warning: {warning}");
 
         if (result.IsValid)
         {
-            Console.WriteLine($"'{archive.Name}' is valid.");
+            Console.WriteLine($"'{archiveName}' is valid.");
             return 0;
         }
 
         foreach (var error in result.Errors)
             Console.Error.WriteLine($"  {error}");
 
-        Console.Error.WriteLine($"'{archive.Name}' is INVALID ({result.Errors.Count} error(s)).");
+        Console.Error.WriteLine($"'{archiveName}' is INVALID ({result.Errors.Count} error(s)).");
         return 1;
     }
 }

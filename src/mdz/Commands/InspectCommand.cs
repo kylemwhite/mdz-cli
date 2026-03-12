@@ -32,19 +32,21 @@ public static class InspectCommand
 
     private static int Handle(FileInfo archive)
     {
-        if (!archive.Exists)
+        var archivePath = ArchivePathResolver.ResolveInputArchivePath(archive.FullName);
+        if (!File.Exists(archivePath))
         {
-            Console.Error.WriteLine($"Error: Archive '{archive.FullName}' does not exist.");
+            Console.Error.WriteLine($"Error: Archive '{archivePath}' does not exist.");
             return 1;
         }
 
         try
         {
-            Console.WriteLine($"Archive: {archive.Name}");
-            Console.WriteLine($"  File size: {archive.Length:N0} bytes");
+            var archiveInfo = new FileInfo(archivePath);
+            Console.WriteLine($"Archive: {archiveInfo.Name}");
+            Console.WriteLine($"  File size: {archiveInfo.Length:N0} bytes");
             Console.WriteLine();
 
-            var manifest = MdzArchive.ReadManifest(archive.FullName);
+            var manifest = MdzArchive.ReadManifest(archivePath);
 
             if (manifest is null)
             {
@@ -83,13 +85,13 @@ public static class InspectCommand
 
             Console.WriteLine();
 
-            var entryPoint = MdzArchive.ResolveEntryPoint(archive.FullName);
+            var entryPoint = MdzArchive.ResolveEntryPoint(archivePath);
             if (entryPoint is not null)
                 Console.WriteLine($"Resolved entry point: {entryPoint}");
             else
                 Console.WriteLine("Resolved entry point: (none — no unambiguous entry point found)");
 
-            var entries = MdzArchive.List(archive.FullName);
+            var entries = MdzArchive.List(archivePath);
             Console.WriteLine($"Total files: {entries.Count}");
 
             return 0;

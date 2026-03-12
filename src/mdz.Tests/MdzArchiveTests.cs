@@ -9,6 +9,8 @@ namespace Mdz.Tests;
 public class MdzArchiveTests : IDisposable
 {
     private readonly string _tempDir;
+    private static string SampleArchivePath =>
+        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "samples", "demo.mdz"));
 
     public MdzArchiveTests()
     {
@@ -446,5 +448,32 @@ public class MdzArchiveTests : IDisposable
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("ERR_ZIP_INVALID"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Sample Archive
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void SampleArchive_List_IncludesExpectedFiles()
+    {
+        Assert.True(File.Exists(SampleArchivePath), $"Sample archive not found at '{SampleArchivePath}'.");
+
+        var paths = MdzArchive.List(SampleArchivePath);
+
+        Assert.Contains("index.md", paths);
+        Assert.Contains("manifest.json", paths);
+        Assert.Contains("assets/overview.svg", paths);
+    }
+
+    [Fact]
+    public void SampleArchive_Validate_IsValid()
+    {
+        Assert.True(File.Exists(SampleArchivePath), $"Sample archive not found at '{SampleArchivePath}'.");
+
+        var result = MdzArchive.Validate(SampleArchivePath);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
     }
 }

@@ -20,39 +20,58 @@ public static class ExtractCommand
             aliases: ["--output", "-o"],
             description: "Destination directory. Defaults to a directory named after the archive in the current folder.");
 
+        var allowInvalidOption = new Option<bool>(
+            aliases: ["--allow-invalid"],
+            description: "Extract even if the archive fails validation checks.");
+
         var cmd = new Command("extract", "Extract the contents of a .mdz archive.")
         {
             archiveArg,
             outputOption,
+            allowInvalidOption,
         };
 
         cmd.SetHandler((InvocationContext ctx) =>
         {
             var archive = ctx.ParseResult.GetValueForArgument(archiveArg);
             var outputDir = ctx.ParseResult.GetValueForOption(outputOption);
-            ctx.ExitCode = Handle(archive!, outputDir);
+            var allowInvalid = ctx.ParseResult.GetValueForOption(allowInvalidOption);
+            ctx.ExitCode = Handle(archive!, outputDir, allowInvalid);
         });
 
         return cmd;
     }
 
-    private static int Handle(FileInfo archive, DirectoryInfo? outputDir)
+    private static int Handle(FileInfo archive, DirectoryInfo? outputDir, bool allowInvalid)
     {
-        if (!archive.Exists)
+        var archivePath = ArchivePathResolver.ResolveInputArchivePath(archive.FullName);
+        if (!File.Exists(archivePath))
         {
-            Console.Error.WriteLine($"Error: Archive '{archive.FullName}' does not exist.");
+            Console.Error.WriteLine($"Error: Archive '{archivePath}' does not exist.");
             return 1;
+        }
+
+        if (!allowInvalid)
+        {
+            var validation = MdzArchive.Validate(archivePath);
+            if (!validation.IsValid)
+            {
+                Console.Error.WriteLine("Error: Archive is invalid. Use --allow-invalid to extract anyway.");
+                foreach (var error in validation.Errors)
+                    Console.Error.WriteLine($"  {error}");
+                return 1;
+            }
         }
 
         // Default output directory: archive name without extension
         var dest = outputDir?.FullName
             ?? Path.Combine(
-                archive.DirectoryName ?? Directory.GetCurrentDirectory(),
-                Path.GetFileNameWithoutExtension(archive.Name));
+                Path.GetDirectoryName(archivePath) ?? Directory.GetCurrentDirectory(),
+                Path.GetFileNameWithoutExtension(archivePath));
 
         try
         {
-            MdzArchive.Extract(archive.FullName, dest);
+            MdzArchive.Extract(archivePath, dest);
             Console.WriteLine($"Extracted to '{dest}'");
             return 0;
         }

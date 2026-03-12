@@ -1,4 +1,4 @@
-# mdz-cli
+# mdz command line-interface (CLI)
 
 A .NET command-line interface written in C# for creating, extracting, validating, and inspecting `.mdz` files.
 
@@ -12,13 +12,7 @@ Requires [.NET 10 SDK](https://dotnet.microsoft.com/download) or later.
 
 ### One-line install
 
-Linux:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/kylemwhite/mdz-cli/main/scripts/install.sh | sh
-```
-
-macOS:
+Linux/macOS:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kylemwhite/mdz-cli/main/scripts/install.sh | sh
@@ -28,6 +22,12 @@ Windows (PowerShell):
 
 ```powershell
 irm https://raw.githubusercontent.com/kylemwhite/mdz-cli/main/scripts/install.ps1 | iex
+```
+
+Windows launcher location:
+
+```text
+%LOCALAPPDATA%\Microsoft\WindowsApps\mdz.cmd
 ```
 
 After install, run:
@@ -56,16 +56,20 @@ mdz [command] [options]
 
 ---
 
-### `mdz create <output> <source> [options]`
+### `mdz create <source> <output> [options]`
 
 Creates a `.mdz` archive from all files in a source directory.
 
 ```bash
-mdz create my-doc.mdz ./my-doc-folder --title "My Document" --author "Jane Smith" --entry-point index.md
+mdz create ./my-doc-folder my-doc.mdz --title "My Document" --author "Jane Smith" --entry-point index.md
+mdz create --source ./my-doc-folder --output my-doc.mdz --force
 ```
 
 | Option | Short | Description |
 |--------|-------|-------------|
+| `--source` | `-s` | Source directory (alternative to positional `<source>`) |
+| `--output` | `-o` | Output archive path (alternative to positional `<output>`) |
+| `--force` | `-f` | Overwrite output file if it already exists |
 | `--title` | `-t` | Document title (writes `manifest.json`) |
 | `--entry-point` | `-e` | Relative path to the primary Markdown file |
 | `--language` | `-l` | BCP 47 language tag (e.g. `en`, `fr-CA`) |
@@ -86,6 +90,7 @@ mdz extract my-doc.mdz --output ./extracted
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--output` | `-o` | Destination directory (defaults to archive name without extension) |
+| `--allow-invalid` | | Extract even if archive validation fails |
 
 ---
 
