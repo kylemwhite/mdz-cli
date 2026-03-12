@@ -18,6 +18,12 @@ Linux/macOS:
 curl -fsSL https://raw.githubusercontent.com/kylemwhite/mdz-cli/main/scripts/install.sh | sh
 ```
 
+Linux/macOS system-wide install (recommended if you can use sudo):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kylemwhite/mdz-cli/main/scripts/install.sh | sudo sh
+```
+
 Windows (PowerShell):
 
 ```powershell

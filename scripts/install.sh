@@ -19,9 +19,15 @@ fi
 REPO_OWNER="${REPO_OWNER:-kylemwhite}"
 REPO_NAME="${REPO_NAME:-mdz-cli}"
 MDZ_VERSION="${MDZ_VERSION:-}"
-INSTALL_ROOT="${INSTALL_ROOT:-$HOME/.local/share/mdz-cli}"
-BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+
+if [ "$(id -u)" -eq 0 ]; then
+  INSTALL_ROOT="${INSTALL_ROOT:-/usr/local/lib/mdz-cli}"
+  BIN_DIR="${BIN_DIR:-/usr/local/bin}"
+else
+  INSTALL_ROOT="${INSTALL_ROOT:-$HOME/.local/share/mdz-cli}"
+  BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
+fi
 
 OS="$(uname -s)"
 ARCH="$(uname -m)"
@@ -96,4 +102,8 @@ chmod +x "$BIN_DIR/mdz"
 
 echo "Installed files: $INSTALL_ROOT"
 echo "Launcher: $BIN_DIR/mdz"
-echo "If needed, add to PATH: export PATH=\"$BIN_DIR:\$PATH\""
+if command -v mdz >/dev/null 2>&1; then
+  echo "mdz is available on PATH."
+else
+  echo "If needed, add to PATH: export PATH=\"$BIN_DIR:\$PATH\""
+fi
