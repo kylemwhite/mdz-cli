@@ -57,6 +57,8 @@ mdz --help
 mdz [command] [options]
 ```
 
+Use `mdz <command> --help` for command-specific options.
+
 ### Commands
 
 | Command | Description |
@@ -72,6 +74,7 @@ mdz [command] [options]
 ### `mdz create <source> <output> [options]`
 
 Creates a `.mdz` archive from all files in a source directory.
+If no unambiguous entry point is found and you are in an interactive terminal, `mdz` prompts to generate a default `index.md`.
 
 ```bash
 mdz create ./my-doc-folder my-doc.mdz --title "My Document" --author "Jane Smith" --entry-point index.md
