@@ -65,6 +65,7 @@ internal static class HelpPrinter
             "--filter",
             "--force",
             "--create-index",
+            "--no-interactive",
             "--map-files",
             "--title",
             "--entry-point",

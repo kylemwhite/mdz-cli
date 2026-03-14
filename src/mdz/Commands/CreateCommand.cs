@@ -47,6 +47,10 @@ public static class CreateCommand
             aliases: ["--create-index", "-ci"],
             description: "Automatically create index.md with links to Markdown files when entry-point resolution is ambiguous.");
 
+        var noInteractiveOption = new Option<bool>(
+            aliases: ["--no-interactive"],
+            description: "Disable interactive prompts. Recommended for CI/build pipelines.");
+
         var mapFilesOption = new Option<bool>(
             aliases: ["--map-files", "-mf"],
             description: "* Write/update manifest.json with a markdown file map (path, originalPath, title). Sanitizes invalid source paths if needed.");
@@ -84,6 +88,7 @@ public static class CreateCommand
             outputOption,
             forceOption,
             createIndexOption,
+            noInteractiveOption,
             mapFilesOption,
             titleOption,
             entryPointOption,
@@ -100,6 +105,7 @@ public static class CreateCommand
             var output = ctx.ParseResult.GetValueForOption(outputOption) ?? ctx.ParseResult.GetValueForArgument(outputArg);
             var force = ctx.ParseResult.GetValueForOption(forceOption);
             var createIndex = ctx.ParseResult.GetValueForOption(createIndexOption);
+            var noInteractive = ctx.ParseResult.GetValueForOption(noInteractiveOption);
             var mapFiles = ctx.ParseResult.GetValueForOption(mapFilesOption);
             var title = ctx.ParseResult.GetValueForOption(titleOption);
             var entryPoint = ctx.ParseResult.GetValueForOption(entryPointOption);
@@ -108,7 +114,7 @@ public static class CreateCommand
             var description = ctx.ParseResult.GetValueForOption(descriptionOption);
             var docVersion = ctx.ParseResult.GetValueForOption(versionOption);
 
-            ctx.ExitCode = Handle(output, source, filters, force, createIndex, mapFiles, title, entryPoint, language, author, description, docVersion);
+            ctx.ExitCode = Handle(output, source, filters, force, createIndex, noInteractive, mapFiles, title, entryPoint, language, author, description, docVersion);
         });
 
         return cmd;
@@ -120,6 +126,7 @@ public static class CreateCommand
         string[] filters,
         bool force,
         bool createIndex,
+        bool noInteractive,
         bool mapFiles,
         string? title,
         string? entryPoint,
@@ -140,8 +147,10 @@ public static class CreateCommand
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 Console.Error.WriteLine(
-                    "Hint: In PowerShell/CMD, a quoted source path ending with '\\' can swallow the next argument. " +
-                    "Try removing the trailing slash (for example: mdz create \".\\Katie Taxes\" taxes -ci).");
+                    "Hint: This usually means <output> was not parsed as a separate argument. " +
+                    "If <source> contains spaces, quote it. Also avoid a trailing '\\' at the end of the source path " +
+                    "(for example: mdz create \".\\My Docs\" docs -ci)."
+                );
             }
             return 1;
         }
@@ -205,7 +214,7 @@ public static class CreateCommand
         {
             var effectiveFilters = GetEffectiveFilters(filters);
             var scan = ScanSourceFiles(source.FullName, manifest, mapFiles, effectiveFilters);
-            if (!mapFiles && scan.InvalidPathCount > 0 && IsInteractiveConsole())
+            if (!mapFiles && scan.InvalidPathCount > 0 && IsInteractiveConsole(noInteractive))
             {
                 mapFiles = PromptMapFiles(scan.InvalidPathCount);
                 if (mapFiles)
@@ -286,7 +295,7 @@ public static class CreateCommand
                 var archivePaths = scan.Files.Select(file => file.ArchivePath).ToList();
                 if (string.IsNullOrWhiteSpace(manifest?.EntryPoint)
                     && ResolveEntryPoint(archivePaths, manifest) is null
-                    && IsInteractiveConsole())
+                    && IsInteractiveConsole(noInteractive))
                 {
                     createIndex = PromptCreateIndex();
                     if (createIndex)
@@ -518,7 +527,25 @@ public static class CreateCommand
         return $"<{encoded}>";
     }
 
-    private static bool IsInteractiveConsole() => !Console.IsInputRedirected;
+    private static bool IsInteractiveConsole(bool noInteractive)
+    {
+        if (noInteractive)
+            return false;
+
+        if (Console.IsInputRedirected || Console.IsOutputRedirected)
+            return false;
+
+        // Common CI providers set CI=true/1; treat that as non-interactive.
+        var ci = Environment.GetEnvironmentVariable("CI");
+        if (!string.IsNullOrWhiteSpace(ci)
+            && !ci.Equals("false", StringComparison.OrdinalIgnoreCase)
+            && !ci.Equals("0", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
 
     private static SourceScanResult ScanSourceFiles(
         string sourceDirectory,

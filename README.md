@@ -15,13 +15,13 @@ Although the CLI is built with C#, binaries are distributed as prebuilt release 
 **Windows** (PowerShell, will put `mdz.cmd` in `%LOCALAPPDATA%\Microsoft\WindowsApps` ):
 
 ```powershell
-irm https://raw.githubusercontent.com/kylemwhite/mdz-cli/main/scripts/install.ps1 | iex
+irm "https://raw.githubusercontent.com/kylemwhite/mdz-cli/main/scripts/install.ps1?nocache=$(Get-Date -UFormat %s)" | iex
 ```
 
-If this fails in PowerShell due to cached script/API issues, retry with cache-busting and explicit version:
+If you need to pin a specific release version during install:
 
 ```powershell
-$env:MDZ_VERSION='v1.0.0-beta.3'
+$env:MDZ_VERSION='vX.Y.Z'
 irm "https://raw.githubusercontent.com/kylemwhite/mdz-cli/main/scripts/install.ps1?nocache=$(Get-Date -UFormat %s)" | iex
 ```
 
