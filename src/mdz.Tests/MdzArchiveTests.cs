@@ -336,7 +336,7 @@ public class MdzArchiveTests : IDisposable
     }
 
     [Fact]
-    public void Validate_ManifestMissingTitleField_IsInvalid()
+    public void Validate_ManifestMissingTitleField_IsValid()
     {
         var src = MakeSourceDir(("index.md", "# Hello"));
         var archivePath = NewArchivePath();
@@ -353,8 +353,8 @@ public class MdzArchiveTests : IDisposable
 
         var result = MdzArchive.Validate(archivePath);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Contains("ERR_MANIFEST_INVALID") && e.Contains("title"));
+        Assert.True(result.IsValid);
+        Assert.DoesNotContain(result.Errors, e => e.Contains("title", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

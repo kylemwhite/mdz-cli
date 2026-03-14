@@ -122,7 +122,7 @@ public sealed class SpecFixtureTests : IDisposable
 
     private static string GetFixturesDirectory()
     {
-        // mdz-cli repo root from test output: .../src/mdz.Tests/bin/{cfg}/net10.0
+        // mdz-cli repo root from test output: .../src/mdz.Tests/bin/{cfg}/{tfm}
         var repoRoot = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
 

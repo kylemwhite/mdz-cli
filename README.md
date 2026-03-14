@@ -18,6 +18,13 @@ Although the CLI is built with C#, binaries are distributed as prebuilt release 
 irm https://raw.githubusercontent.com/kylemwhite/mdz-cli/main/scripts/install.ps1 | iex
 ```
 
+If this fails in PowerShell due to cached script/API issues, retry with cache-busting and explicit version:
+
+```powershell
+$env:MDZ_VERSION='v1.0.0-beta.3'
+irm "https://raw.githubusercontent.com/kylemwhite/mdz-cli/main/scripts/install.ps1?nocache=$(Get-Date -UFormat %s)" | iex
+```
+
 **Linux/macOS system-wide install** (recommended if you can use sudo):
 
 ```bash
@@ -184,13 +191,13 @@ document.mdz
 
 ## Development
 
-Implementation note: this project is written in C# and targets .NET 10.
+Implementation note: this project is written in C# and targets .NET 8.
 
 ### Browser Builder (experimental)
 
 A standalone browser page is available at `tools/mdz-builder.html`. It accepts a dropped or selected folder, builds an `.mdz`, previews the resolved entry-point markdown, and provides a download link for the generated archive.
 
-Building from source requires [.NET 10 SDK](https://dotnet.microsoft.com/download).
+Building from source requires [.NET 8 SDK](https://dotnet.microsoft.com/download).
 For Linux/macOS setup help, see [Install .NET on Linux/macOS](./INSTALL_DOTNET_LINUX_MACOS.md).
 
 ```bash
@@ -202,5 +209,12 @@ dotnet test
 
 # Run directly
 dotnet run --project src/mdz.Cli/mdz.Cli.csproj -- --help
+
+# Publish a single self-contained executable (example: Windows x64)
+dotnet restore .\mdz-cli.slnx --configfile .\NuGet.Config
+dotnet publish src/mdz.Cli/mdz.Cli.csproj -c Release -r win-x64 --self-contained true --no-restore -p:DebugType=None -p:DebugSymbols=false -o out/win-x64
+
+# Or use the helper script (restores + publishes + renames to mdz.exe/mdz)
+powershell -ExecutionPolicy Bypass -File .\scripts\publish-single.ps1 -Rid win-x64 -ConfigFile .\NuGet.Config
 ```
 
