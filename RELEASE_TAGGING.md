@@ -14,8 +14,10 @@ Use this flow to avoid extra manual steps and keep tags aligned with the exact c
 ```bash
 git add -A
 git commit -m "Release prep: v1.0.0-beta.2"
+# Push the latest code, is NOT yet a release and will NOT be downloaded by install script
 git push
 git tag v1.0.0-beta.2
+# Push the tagged version and trigger the release workflow
 git push origin v1.0.0-beta.2
 ```
 
