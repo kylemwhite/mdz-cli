@@ -706,9 +706,9 @@ public static class CreateCommand
             },
             Core = new ManifestAgent
             {
-                Name = "mdz-core",
+                Name = "mdzip-core",
                 Version = coreVersion,
-                Url = "https://github.com/mdzip-project/mdz-core",
+                Url = "https://github.com/mdzip-project/mdzip-core",
             },
         };
     }
