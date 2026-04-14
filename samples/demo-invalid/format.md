@@ -49,6 +49,7 @@ When a viewer opens an `.mdz`, it finds the primary document using this algorith
 | `description` | string | - | Short summary |
 | `author` | object | - | Primary author (`name`, `email`, `url`) |
 | `producer` | object | - | Producing tool metadata (`application`, `core`) |
+| `mode` | string | - | Archive interpretation mode: `document` (default) or `project` |
 | `keywords` | string[] | - | Tags for indexing |
 | `license` | string | - | SPDX license identifier or URL |
 | `entryPoint` | string | - | Path to the primary Markdown file |

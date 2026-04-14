@@ -1,6 +1,6 @@
-using Mdz.Core;
+using MDZip.Core;
 
-namespace Mdz.Tests;
+namespace MDZip.Tests;
 
 public class PathValidatorTests
 {

@@ -2,10 +2,10 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using Mdz.Commands;
-using Mdz.Core;
+using MDZip.Commands;
+using MDZip.Core;
 
-namespace Mdz.Tests;
+namespace MDZip.Tests;
 
 public sealed class SpecFixtureTests : IDisposable
 {

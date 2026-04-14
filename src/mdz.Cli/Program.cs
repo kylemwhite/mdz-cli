@@ -1,6 +1,6 @@
 using System.CommandLine;
 using System.Reflection;
-using Mdz.Commands;
+using MDZip.Commands;
 
 var rawVersion = Assembly.GetEntryAssembly()?
     .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
@@ -24,7 +24,7 @@ var rootCommand = new RootCommand(
 
 if (args.Length == 0 || IsRootHelpRequest(args))
 {
-    Mdz.Cli.HelpPrinter.PrintRootHelp(rootCommand, version);
+    MDZip.Cli.HelpPrinter.PrintRootHelp(rootCommand, version);
     return 0;
 }
 

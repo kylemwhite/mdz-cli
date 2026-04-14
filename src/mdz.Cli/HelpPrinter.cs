@@ -1,6 +1,6 @@
 using System.CommandLine;
 
-namespace Mdz.Cli;
+namespace MDZip.Cli;
 
 internal static class HelpPrinter
 {
@@ -85,6 +85,7 @@ internal static class HelpPrinter
             "--language",
             "--author",
             "--description",
+            "--mode",
             "--doc-version",
         };
 

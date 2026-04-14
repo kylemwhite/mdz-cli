@@ -1,8 +1,8 @@
 using System.CommandLine;
-using Mdz.Commands;
-using Mdz.Core;
+using MDZip.Commands;
+using MDZip.Core;
 
-namespace Mdz.Tests;
+namespace MDZip.Tests;
 
 public class AddRemoveCommandTests : IDisposable
 {

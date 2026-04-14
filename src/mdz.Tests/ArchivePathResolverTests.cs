@@ -1,6 +1,6 @@
-using Mdz.Commands;
+using MDZip.Commands;
 
-namespace Mdz.Tests;
+namespace MDZip.Tests;
 
 public class ArchivePathResolverTests : IDisposable
 {

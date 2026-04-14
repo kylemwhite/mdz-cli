@@ -3,10 +3,11 @@ using System.CommandLine.Invocation;
 using System.Runtime.InteropServices;
 using System.Reflection;
 using System.Text;
-using Mdz.Core;
-using Mdz.Models;
+using MDZip.Core.Models;
+using MDZip.Core;
 
-namespace Mdz.Commands;
+
+namespace MDZip.Commands;
 
 /// <summary>
 /// Implements the 'mdz create' subcommand.
@@ -76,6 +77,10 @@ public static class CreateCommand
             aliases: ["--description", "-d"],
             description: "* Short description for manifest.description.");
 
+        var modeOption = new Option<string?>(
+            aliases: ["--mode"],
+            description: "* Archive mode for manifest.mode ('document' or 'project').");
+
         var versionOption = new Option<string?>(
             aliases: ["--doc-version"],
             description: "* Document version for manifest.version (e.g. '1.0.0').");
@@ -98,6 +103,7 @@ public static class CreateCommand
             languageOption,
             authorOption,
             descriptionOption,
+            modeOption,
             versionOption,
         };
 
@@ -115,9 +121,10 @@ public static class CreateCommand
             var language = ctx.ParseResult.GetValueForOption(languageOption);
             var author = ctx.ParseResult.GetValueForOption(authorOption);
             var description = ctx.ParseResult.GetValueForOption(descriptionOption);
+            var mode = ctx.ParseResult.GetValueForOption(modeOption);
             var docVersion = ctx.ParseResult.GetValueForOption(versionOption);
 
-            ctx.ExitCode = Handle(output, source, filters, force, createIndex, noInteractive, mapFiles, title, entryPoint, language, author, description, docVersion);
+            ctx.ExitCode = Handle(output, source, filters, force, createIndex, noInteractive, mapFiles, title, entryPoint, language, author, description, mode, docVersion);
         });
 
         return cmd;
@@ -136,6 +143,7 @@ public static class CreateCommand
         string? language,
         string? author,
         string? description,
+        string? mode,
         string? docVersion)
     {
         if (source is null)
@@ -180,30 +188,39 @@ public static class CreateCommand
             return 1;
         }
 
+        if (!string.IsNullOrWhiteSpace(mode)
+            && !mode.Equals("document", StringComparison.Ordinal)
+            && !mode.Equals("project", StringComparison.Ordinal))
+        {
+            Console.Error.WriteLine("Error: --mode must be either 'document' or 'project'.");
+            return 1;
+        }
+
         var hasManifestOption =
             mapFiles
-            || 
+            ||
             title is not null
             || entryPoint is not null
             || language is not null
             || author is not null
             || description is not null
+            || mode is not null
             || docVersion is not null;
 
         // Build optional manifest. Any metadata option triggers manifest creation.
         Manifest? manifest = null;
-            if (hasManifestOption)
+        if (hasManifestOption)
+        {
+            var effectiveTitle = title;
+            if (string.IsNullOrWhiteSpace(effectiveTitle))
             {
-                var effectiveTitle = title;
-                if (string.IsNullOrWhiteSpace(effectiveTitle))
-                {
                 effectiveTitle = source.Name;
                 Console.WriteLine($"Info: --title was not provided. Using source folder name '{effectiveTitle}' for manifest title.");
-                }
+            }
 
             manifest = new Manifest
             {
-                Spec = new ManifestSpec { Name = "mdzip-spec", Version = "1.0.1-draft" },
+                Spec = new ManifestSpec { Name = "mdzip-spec", Version = "1.1.0" },
                 Producer = BuildProducerMetadata(),
                 Title = effectiveTitle,
                 EntryPoint = entryPoint,
@@ -212,6 +229,8 @@ public static class CreateCommand
                 Version = docVersion,
                 Author = author is not null ? new ManifestAuthor { Name = author } : null,
             };
+
+            manifest.Mode = mode;
         }
 
         try
@@ -224,16 +243,52 @@ public static class CreateCommand
                 if (mapFiles)
                 {
                     Console.WriteLine("Re-scanning with file mapping enabled.");
-                    EnsureManifestForFileMapping(ref manifest, source.Name, title);
+                    EnsureManifestForFileMapping(ref manifest, source.Name, title, mode);
                     scan = ScanSourceFiles(source.FullName, manifest, mapFiles: true, effectiveFilters);
                 }
             }
 
             if (mapFiles)
-                EnsureManifestForFileMapping(ref manifest, source.Name, title);
+                EnsureManifestForFileMapping(ref manifest, source.Name, title, mode);
 
             if (mapFiles && manifest is not null)
                 manifest.Files = scan.ManifestFiles;
+
+            var archivePaths = scan.Files.Select(file => file.ArchivePath).ToList();
+            if (!string.IsNullOrWhiteSpace(manifest?.EntryPoint)
+                && !archivePaths.Any(path => path.Equals(manifest.EntryPoint, StringComparison.OrdinalIgnoreCase)))
+            {
+                Console.Error.WriteLine(
+                    $"Error: Manifest entry-point '{manifest.EntryPoint}' was provided but does not exist. " +
+                    "Update --entry-point or remove it to allow entry-point discovery.");
+                return 1;
+            }
+
+            if (!createIndex)
+            {
+                var resolvedEntryPoint = ResolveEntryPoint(archivePaths, manifest);
+                if (resolvedEntryPoint is null)
+                {
+                    if (IsInteractiveConsole(noInteractive))
+                    {
+                        createIndex = PromptCreateIndex();
+                        if (createIndex)
+                            Console.WriteLine("Generating default index.md.");
+                        else
+                        {
+                            Console.Error.WriteLine(
+                                "Error: No unambiguous entry point found. Provide --entry-point or use --create-index.");
+                            return 1;
+                        }
+                    }
+                    else
+                    {
+                        Console.Error.WriteLine(
+                            "Error: No unambiguous entry point found. Provide --entry-point or use --create-index.");
+                        return 1;
+                    }
+                }
+            }
 
             if (createIndex)
             {
@@ -271,6 +326,7 @@ public static class CreateCommand
                         language: language,
                         author: author,
                         description: description,
+                        mode: mode,
                         docVersion: docVersion);
                     File.WriteAllText(
                         tempIndexPath,
@@ -296,65 +352,8 @@ public static class CreateCommand
             }
             else
             {
-                var archivePaths = scan.Files.Select(file => file.ArchivePath).ToList();
-                if (string.IsNullOrWhiteSpace(manifest?.EntryPoint)
-                    && ResolveEntryPoint(archivePaths, manifest) is null
-                    && IsInteractiveConsole(noInteractive))
-                {
-                    createIndex = PromptCreateIndex();
-                    if (createIndex)
-                        Console.WriteLine("Generating default index.md.");
-                }
-
-                if (createIndex)
-                {
-                    var files = scan.Files.ToList();
-                    var markdownPaths = files
-                        .Select(f => f.ArchivePath)
-                        .Where(IsMarkdownFile)
-                        .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-                        .ToList();
-
-                    var tempIndexPath = Path.Combine(Path.GetTempPath(), $"mdz-index-{Guid.NewGuid():N}.md");
-                    var createCommand = BuildCreateCommandForFooter(
-                        sourcePath: source.FullName,
-                        outputPath: outputPath,
-                        filters: effectiveFilters,
-                        force: force,
-                        createIndex: createIndex,
-                        mapFiles: mapFiles,
-                        title: title,
-                        entryPoint: entryPoint,
-                        language: language,
-                        author: author,
-                        description: description,
-                        docVersion: docVersion);
-                    File.WriteAllText(
-                        tempIndexPath,
-                        BuildGeneratedIndex(markdownPaths, createCommand, title),
-                        Encoding.UTF8);
-                    files.Add(("index.md", tempIndexPath));
-                    Console.WriteLine("Added generated archive entry 'index.md'.");
-
-                    if (manifest is not null)
-                        manifest.EntryPoint = "index.md";
-
-                    try
-                    {
-                        MdzArchive.CreateFromFiles(outputPath, files, manifest);
-                        WriteCreateSummary(files.Count, scan);
-                    }
-                    finally
-                    {
-                        if (File.Exists(tempIndexPath))
-                            File.Delete(tempIndexPath);
-                    }
-                }
-                else
-                {
-                    MdzArchive.CreateFromFiles(outputPath, scan.Files, manifest);
-                    WriteCreateSummary(scan.Files.Count, scan);
-                }
+                MdzArchive.CreateFromFiles(outputPath, scan.Files, manifest);
+                WriteCreateSummary(scan.Files.Count, scan);
             }
 
             Console.WriteLine($"Created '{outputPath}'");
@@ -380,12 +379,12 @@ public static class CreateCommand
     {
         var sb = new StringBuilder();
         var pageTitle = string.IsNullOrWhiteSpace(title) ? "Index" : title;
-        sb.AppendLine($"# {pageTitle}");
-        sb.AppendLine();
+        AppendLineLf(sb, $"# {pageTitle}");
+        AppendLineLf(sb);
 
         if (markdownPaths.Count == 0)
         {
-            sb.AppendLine("No Markdown files were found.");
+            AppendLineLf(sb, "No Markdown files were found.");
             return sb.ToString();
         }
 
@@ -402,12 +401,12 @@ public static class CreateCommand
         }
 
         RenderIndexTree(root, sb, parentPath: string.Empty, indent: 0);
-        sb.AppendLine();
-        sb.AppendLine("---");
-        sb.AppendLine();
-        sb.AppendLine($"Generated by `{createCommand}`");
-        sb.AppendLine();
-        sb.AppendLine("More info: [mdzip.org](https://mdzip.org)");
+        AppendLineLf(sb);
+        AppendLineLf(sb, "---");
+        AppendLineLf(sb);
+        AppendLineLf(sb, $"Generated by `{createCommand}`");
+        AppendLineLf(sb);
+        AppendLineLf(sb, "More info: [mdzip.org](https://mdzip.org)");
 
         return sb.ToString();
     }
@@ -424,6 +423,7 @@ public static class CreateCommand
         string? language,
         string? author,
         string? description,
+        string? mode,
         string? docVersion)
     {
         var parts = new List<string>
@@ -452,6 +452,7 @@ public static class CreateCommand
         AppendOption(parts, "--language", language);
         AppendOption(parts, "--author", author);
         AppendOption(parts, "--description", description);
+        AppendOption(parts, "--mode", mode);
         AppendOption(parts, "--doc-version", docVersion);
 
         return string.Join(' ', parts);
@@ -489,15 +490,27 @@ public static class CreateCommand
 
             if (child.IsDirectory)
             {
-                sb.AppendLine($"{indentText}- {child.Name}/");
+                AppendLineLf(sb, $"{indentText}- {child.Name}/");
                 RenderIndexTree(child, sb, currentPath, indent + 1);
             }
             else
             {
                 var linkTarget = ToMarkdownLinkTarget(currentPath);
-                sb.AppendLine($"{indentText}- [{child.Name}]({linkTarget})");
+                AppendLineLf(sb, $"{indentText}- [{child.Name}]({linkTarget})");
             }
         }
+    }
+
+    private static void AppendLineLf(StringBuilder sb, string? value = null)
+    {
+        if (value is null)
+        {
+            sb.Append('\n');
+            return;
+        }
+
+        sb.Append(value);
+        sb.Append('\n');
     }
 
     private static string? ResolveEntryPoint(IReadOnlyList<string> archivePaths, Manifest? manifest)
@@ -669,7 +682,7 @@ public static class CreateCommand
             : $"{count} {reason}";
     }
 
-    private static void EnsureManifestForFileMapping(ref Manifest? manifest, string sourceName, string? requestedTitle)
+    private static void EnsureManifestForFileMapping(ref Manifest? manifest, string sourceName, string? requestedTitle, string? requestedMode)
     {
         if (manifest is not null)
             return;
@@ -683,11 +696,13 @@ public static class CreateCommand
 
         manifest = new Manifest
         {
-            Spec = new ManifestSpec { Name = "mdzip-spec", Version = "1.0.1-draft" },
+            Spec = new ManifestSpec { Name = "mdzip-spec", Version = "1.1.0" },
             Producer = BuildProducerMetadata(),
             Title = effectiveTitle,
             Language = "en",
         };
+
+        manifest.Mode = requestedMode;
     }
 
     private static ManifestProducer BuildProducerMetadata()

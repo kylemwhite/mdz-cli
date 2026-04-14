@@ -1,8 +1,8 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
-using Mdz.Core;
+using MDZip.Core;
 
-namespace Mdz.Commands;
+namespace MDZip.Commands;
 
 /// <summary>
 /// Implements the 'mdz remove' subcommand.

@@ -1,8 +1,8 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
-using Mdz.Core;
+using MDZip.Core;
 
-namespace Mdz.Commands;
+namespace MDZip.Commands;
 
 /// <summary>
 /// Implements the 'mdz inspect' subcommand.
@@ -60,6 +60,7 @@ public static class InspectCommand
                 Console.WriteLine("Manifest:");
                 PrintField("  Spec version (spec.version)", manifest.Spec?.Version ?? manifest.LegacyMdz);
                 PrintField("  Title", manifest.Title);
+                PrintField("  Mode", manifest.Mode);
                 PrintField("  Entry point", manifest.EntryPoint);
                 PrintField("  Language", manifest.Language);
                 PrintField("  Document version", manifest.Version);
@@ -119,7 +120,7 @@ public static class InspectCommand
 
     private static void PrintField(string label, string? value)
     {
-        if (value is not null)
+        if (!string.IsNullOrWhiteSpace(value))
             Console.WriteLine($"{label}: {value}");
     }
 }

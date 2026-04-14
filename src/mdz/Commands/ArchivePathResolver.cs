@@ -1,4 +1,4 @@
-namespace Mdz.Commands;
+namespace MDZip.Commands;
 
 public static class ArchivePathResolver
 {

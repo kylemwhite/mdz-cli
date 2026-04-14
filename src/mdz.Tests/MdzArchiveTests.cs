@@ -1,10 +1,10 @@
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
-using Mdz.Core;
-using Mdz.Models;
+using MDZip.Core;
+using MDZip.Core.Models;
 
-namespace Mdz.Tests;
+namespace MDZip.Tests;
 
 public class MdzArchiveTests : IDisposable
 {
